@@ -1,25 +1,41 @@
-# Atlas Fit 1.0
+# Atlas Fit
 
-Aplicativo Android nativo em Kotlin para treino pessoal.
+Aplicativo Android em português para acompanhar as fichas A, B e C, os treinos no condomínio e a evolução corporal. Os registros ficam no aparelho.
 
-## Recursos
-- Fichas A, B e C originais, completas e expressas
-- Calendário de 3 semanas (A, B, C completas em rodízio), começando em 09/11/2026
-- Academia principal segunda, quarta e sexta; condomínio terça e sábado
-- Registro local de cargas, séries, repetições, peso e cintura
-- Pesquisa de vídeos demonstrativos no YouTube (não são links de vídeos previamente validados)
-- Interface em português e tema escuro
+## Treinos
 
-## APK pelo GitHub Actions
-1. Abra a aba **Actions**.
-2. Selecione **Build Android APK**.
-3. Após uma execução bem-sucedida, baixe o artefato **atlas-fit-debug-apk**.
-4. Extraia o ZIP do artefato e instale **app-debug.apk** no Android.
+- Segunda, quarta e sexta na academia. A versão completa alterna entre A, B e C a partir de 09/11/2026. As outras duas fichas são expressas e usam exercícios da ficha original.
+- Terça com cardio e mobilidade no condomínio. Sábado com cardio e pesos.
+- Marque cada exercício realizado e registre carga, séries e repetições, ou minutos para atividades por tempo.
+- O relatório mostra dias ativos, sessões por modalidade e detalhes dos exercícios. Use os filtros de 7 dias, 30 dias ou todo o histórico.
+- Os botões de execução abrem uma busca do exercício no YouTube com o termo Leandro Twin.
 
-O APK de debug é para testes pessoais e não foi publicado na Play Store.
+## Bioimpedância
 
-## Compilação local
-Requer JDK 17, Android SDK 35 e Gradle 8.9. Execute `gradle assembleDebug`.
+Acompanhe peso, percentual de gordura e massa adiposa em gráficos. O histórico também aceita cintura, IMC, água, massa muscular, massa livre de gordura, nível de gordura visceral e metabolismo basal. Registre as unidades como aparecem no laudo.
 
-## Limitações da versão 1.0
-O histórico de cargas armazena o último valor por exercício, sem séries temporais; medidas guardam o último registro. Não há mídia incorporada nem autenticação. O plano não substitui acompanhamento de profissional de educação física.
+Para importar avaliações, abra **Evolução → Importar histórico de avaliações** e selecione um JSON com uma lista de avaliações. Exemplo de estrutura:
+
+```json
+[
+  {"date":"2026-10-01","source":"Minha balança","weight":80.0,"fat":20.0,"fatKg":16.0}
+]
+```
+
+Use uma data ISO e pelo menos um indicador. Os demais campos são `leanKg`, `muscle`, `water`, `waist`, `bmi`, `visceralLevel` e `bmrKcal`. As unidades opcionais `muscleUnit` e `waterUnit` aceitam `%` ou `kg`. `muscleUnit` também aceita `kg esquelética`. Datas e origens já registradas são ignoradas durante a importação.
+
+## APK Android
+
+[Baixar a versão publicada](https://github.com/stringhijocimar-cyber/Atlas-fit/releases/latest/download/atlas-fit.apk)
+
+O APK de teste é destinado à instalação inicial. Uma atualização de uma instalação existente depende de ambas as versões terem a mesma assinatura.
+
+## Compilação
+
+Requer Android SDK 35, JDK 17 e Gradle 8.9.
+
+```sh
+gradle testDebugUnitTest assembleDebug
+```
+
+O APK local fica em `app/build/outputs/apk/debug/app-debug.apk`.
