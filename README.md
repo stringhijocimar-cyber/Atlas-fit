@@ -8,7 +8,7 @@ Aplicativo Android em português para acompanhar as fichas A, B e C, os treinos 
 - Terça com cardio e mobilidade no condomínio. Sábado com cardio e pesos.
 - Marque cada exercício realizado e registre carga, séries e repetições, ou minutos para atividades por tempo.
 - O relatório mostra dias ativos, sessões por modalidade e detalhes dos exercícios. Use os filtros de 7 dias, 30 dias ou todo o histórico.
-- Os botões de execução abrem uma busca do exercício no YouTube com o termo Leandro Twin.
+- Os botões de execução abrem vídeos específicos no YouTube, com o canal identificado na tela.
 
 ## Bioimpedância
 
@@ -42,6 +42,15 @@ O APK local fica em `app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Interface 2.0
 
-A aba **Exercícios** reúne ilustrações em duas fases, músculos-alvo, instruções e atalhos de busca de vídeo. As fichas e as ilustrações são locais. O YouTube usa conexão à internet.
+A aba **Exercícios** reúne ilustrações em duas fases, músculos-alvo, instruções e links diretos para demonstrações. As fichas e as ilustrações são locais. O YouTube usa conexão à internet.
 
 No modo treino, registre repetições e carga por série. Marcar uma série inicia o descanso configurado. O treino em andamento é salvo no aparelho, incluindo o cronômetro e os campos preenchidos. Finalize para gravar a sessão no histórico e consultar a evolução de carga por exercício.
+
+
+## Imagens e vídeos na versão 2.1
+
+A biblioteca e o modo treino usam ilustrações 3D geradas para o Atlas Fit. A galeria alterna as duas posições em sequência e permite pausar em qualquer uma delas. Verde identifica os músculos principais e âmbar identifica os auxiliares. A imagem do equipamento é uma referência visual com instruções de ajuste.
+
+Os vídeos são links externos. A seleção prioriza Leandro Twin quando a demonstração corresponde à variante da ficha. Os créditos aparecem junto a cada link.
+
+Referências para os grupos musculares e as variantes: [biblioteca de exercícios da ACE](https://www.acefitness.org/resources/everyone/exercise-library/), [biblioteca de exercícios da NASM](https://www.nasm.org/workout-exercise-guidance) e [estudo de ativação muscular em ângulos de supino](https://pmc.ncbi.nlm.nih.gov/articles/PMC7579505/).

@@ -171,7 +171,7 @@ class MainActivity : Activity() {
             line(intro, heroPlan.title(full), 24, bold = true)
             line(intro, "${heroPlan.items(full).size} exercícios  ·  ${date.br()}", 13, mutedColor)
             val guide = ExerciseGuides[heroPlan.exercises.first()]
-            split.addView(ExerciseArt(this, guide.motion, true), LinearLayout.LayoutParams(dp(106), dp(106)))
+            split.addView(ExerciseArt.phase(this, guide, end = true), LinearLayout.LayoutParams(dp(106), dp(106)))
             button(hero, "Abrir ficha  ›", primary = true) { workout(heroPlan, full, date) }
         }
         val shortcut = row(page)
@@ -354,9 +354,11 @@ class MainActivity : Activity() {
     ).joinToString(" · ").ifEmpty { "Realizado" }
 
     internal fun video(exercise: Exercise) {
-        val query = Uri.encode("Leandro Twin execução ${exercise.name}")
+        val demonstration = ExerciseVideos[ExerciseGuides[exercise]]
+        val url = Uri.Builder().scheme("https").authority("www.youtube.com")
+            .path("watch").appendQueryParameter("v", demonstration.id).build()
         try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=$query")))
+            startActivity(Intent(Intent.ACTION_VIEW, url))
         } catch (_: ActivityNotFoundException) {
             message("Abra o YouTube e pesquise por ${exercise.name}.")
         }

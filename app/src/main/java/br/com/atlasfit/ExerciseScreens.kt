@@ -16,6 +16,7 @@ import java.text.Normalizer
 import java.time.LocalDate
 
 internal class ExerciseScreens(private val ui: MainActivity) {
+    private val media = ExerciseMediaScreens(ui)
     private var librarySearch = ""
     private var filter = "Todos"
 
@@ -67,7 +68,7 @@ internal class ExerciseScreens(private val ui: MainActivity) {
 
     private fun guide(exercise: Exercise) {
         val page = ui.screen("guide", exercise.name, ::library)
-        overview(page, exercise)
+        media.overview(page, exercise)
         instructions(page, exercise)
         ui.addLoadHistory(page, exercise.name)
     }
@@ -87,7 +88,7 @@ internal class ExerciseScreens(private val ui: MainActivity) {
             if (enabled) exercise(slot, items, index, saved, begin(), returnTo)
             else {
                 val preview = ui.screen("guide", items[index].name) { workout(slot, returnTo) }
-                overview(preview, items[index])
+                media.overview(preview, items[index])
                 instructions(preview, items[index])
             }
         }
@@ -151,7 +152,7 @@ internal class ExerciseScreens(private val ui: MainActivity) {
         val entry = draft.exercises.getOrPut(exercise.name) { ExerciseDraft.fromLog(old) }
         val page = ui.screen("exercise", exercise.name) { workout(slot, returnTo) }
         ui.line(page, "${slot.workout.title(slot.full)}   /   ${index + 1} de ${items.size}", 13, accentColor, bold = true)
-        overview(page, exercise)
+        media.overview(page, exercise, compact = true)
         val timer = ui.card(page, highlighted = true)
         val clocks = ui.row(timer)
         val elapsed = clockTile(clocks, "TEMPO DE TREINO")
@@ -353,29 +354,16 @@ internal class ExerciseScreens(private val ui: MainActivity) {
             android.content.res.ColorStateList.valueOf(0x2269d3ff), null, ui.surface(Color.WHITE, 20)
         )
         val split = ui.row(tile).apply { gravity = Gravity.CENTER_VERTICAL }
-        split.addView(ExerciseArt(ui, guide.motion, true), LinearLayout.LayoutParams(ui.dp(92), ui.dp(84)))
+        split.addView(ExerciseArt.phase(ui, guide, end = true), LinearLayout.LayoutParams(ui.dp(92), ui.dp(84)))
         val info = LinearLayout(ui).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(ui.dp(12), 0, ui.dp(4), 0)
         }
         split.addView(info, LinearLayout.LayoutParams(0, -2, 1f))
         ui.line(info, exercise.name, 16, bold = true)
-        ui.line(info, "• ${guide.target}", 12, successColor)
+        ui.line(info, "• ${guide.primary}", 12, successColor)
         ui.line(info, label, 12, mutedColor)
         ui.line(split, "›", 24, accentColor)
-    }
-
-    private fun overview(page: LinearLayout, exercise: Exercise) {
-        val guide = ExerciseGuides[exercise]
-        val item = ui.card(page, highlighted = true)
-        ui.line(item, guide.equipment.uppercase(ptBr) + "    •    " + guide.target, 13, accentColor, bold = true)
-        val frames = ui.row(item)
-        listOf(false to "POSIÇÃO INICIAL", true to "FASE DO MOVIMENTO").forEach { (end, title) ->
-            val side = LinearLayout(ui).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-            frames.addView(side, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = ui.dp(4) })
-            side.addView(ExerciseArt(ui, guide.motion, end), LinearLayout.LayoutParams(-1, ui.dp(112)))
-            ui.line(side, title, 10, mutedColor, bold = true)
-        }
     }
 
     private fun instructions(page: LinearLayout, exercise: Exercise) {
@@ -386,7 +374,7 @@ internal class ExerciseScreens(private val ui: MainActivity) {
         ui.line(item, guide.setup, 15)
         ui.line(item, "02   Movimento", 13, accentColor, bold = true)
         ui.line(item, guide.execution, 15)
-        ui.button(item, "▶  Buscar vídeo no YouTube") { ui.video(exercise) }
+        media.videoButton(item, exercise)
     }
 
     private fun metricInput(row: LinearLayout, label: String, value: String, decimals: Boolean, number: Int): EditText {
