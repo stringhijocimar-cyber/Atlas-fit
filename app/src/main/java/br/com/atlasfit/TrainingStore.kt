@@ -11,20 +11,23 @@ internal data class ExerciseLog(
     val load: Double? = null,
     val sets: Int? = null,
     val reps: Int? = null,
-    val minutes: Int? = null
+    val minutes: Int? = null,
+    val rounds: List<SetResult> = emptyList()
 ) {
     fun json() = JSONObject().put("name", name).put("load", load).put("sets", sets)
-        .put("reps", reps).put("minutes", minutes)
+        .put("reps", reps).put("minutes", minutes).put("rounds", JSONArray(rounds.map(SetResult::json)))
 }
 
 internal data class Session(
     val date: LocalDate,
     val workout: Workout,
     val full: Boolean,
-    val logs: List<ExerciseLog> = emptyList()
+    val logs: List<ExerciseLog> = emptyList(),
+    val durationSeconds: Long? = null
 ) {
     fun json() = JSONObject().put("date", date.toString()).put("sheet", workout.name)
         .put("full", full).put("logs", JSONArray(logs.map(ExerciseLog::json)))
+        .put("duration", durationSeconds)
 
     fun sameSlot(other: Session): Boolean =
         date == other.date && workout == other.workout && full == other.full
@@ -37,9 +40,10 @@ internal class TrainingStore(private val prefs: SharedPreferences) {
             ?: return@mapNotNull null
         val logs = row.optJSONArray("logs")?.objects().orEmpty().map { item ->
             ExerciseLog(item.optString("name"), item.number("load"), item.number("sets")?.toInt(),
-                item.number("reps")?.toInt(), item.number("minutes")?.toInt())
+                item.number("reps")?.toInt(), item.number("minutes")?.toInt(),
+                item.optJSONArray("rounds")?.objects().orEmpty().map(SetResult::fromJson))
         }
-        Session(date, workout, row.optBoolean("full"), logs)
+        Session(date, workout, row.optBoolean("full"), logs, row.number("duration")?.toLong())
     }.sortedByDescending { it.date }
 
     fun save(session: Session): Boolean {
@@ -47,8 +51,19 @@ internal class TrainingStore(private val prefs: SharedPreferences) {
             row.optString("date") == session.date.toString() &&
                 row.optString("sheet") == session.workout.name && row.optBoolean("full") == session.full
         }
-        return write("sessions", rows + session.json())
+        return prefs.edit().putString("sessions", JSONArray(rows + session.json()).toString())
+            .remove(draftKey(session)).commit()
     }
+
+    fun draft(slot: Session): WorkoutDraft? = runCatching {
+        prefs.getString(draftKey(slot), null)?.let { WorkoutDraft.fromJson(JSONObject(it)) }
+    }.getOrNull()
+
+    fun saveDraft(slot: Session, draft: WorkoutDraft) {
+        prefs.edit().putString(draftKey(slot), draft.json().toString()).apply()
+    }
+
+    private fun draftKey(slot: Session) = "draft:${slot.date}:${slot.workout.name}:${slot.full}"
 
     fun legacyLoad(workout: Workout, exercise: Exercise): String =
         prefs.getString("${workout.name}-${exercise.name}", "").orEmpty()

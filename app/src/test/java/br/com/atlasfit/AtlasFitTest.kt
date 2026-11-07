@@ -60,6 +60,36 @@ class AtlasFitTest {
         assertEquals("kg", entries[2].optString("waterUnit"))
     }
 
+    @Test fun keepsSeparateSeriesAndRestAfterResumingDraft() {
+        val store = TrainingStore(preferences(mutableMapOf()))
+        val slot = Session(TrainingPlan.start, Workout.A, true)
+        val exercise = slot.workout.exercises.first()
+        val draft = WorkoutDraft(startedAt = 1000L, restSeconds = 60, restUntil = 65000L)
+        draft.exercises[exercise.name] = ExerciseDraft(
+            mutableListOf(SetEntry("12", "35,5", true, 60), SetEntry("8", "42", true, 90), SetEntry("9", "99")),
+            changed = true
+        )
+        store.saveDraft(slot, draft)
+        val resumed = requireNotNull(store.draft(slot))
+        assertEquals(10L, resumed.elapsed(11000L))
+        assertEquals(54L, resumed.remaining(11000L))
+        val log = requireNotNull(resumed.exercises.getValue(exercise.name).log(exercise, null))
+        assertEquals(listOf(SetResult(1, 12, 35.5, 60), SetResult(2, 8, 42.0, 90)), log.rounds)
+        assertEquals(42.0, log.load)
+        val session = slot.copy(logs = listOf(log), durationSeconds = 90)
+        assertTrue(store.save(session))
+        assertEquals(session, store.sessions().single())
+        assertEquals(null, store.draft(slot))
+    }
+
+    @Test fun libraryHasOfflineGuidesForEveryExercise() {
+        assertEquals(27, ExerciseGuides.exercises.size)
+        Workout.entries.flatMap(Workout::exercises).forEach { exercise ->
+            val guide = ExerciseGuides[exercise]
+            assertTrue(guide.target.isNotBlank() && guide.setup.isNotBlank() && guide.execution.isNotBlank())
+        }
+    }
+
     private fun preferences(data: MutableMap<String, String>): SharedPreferences {
         fun editor(): SharedPreferences.Editor = Proxy.newProxyInstance(
             javaClass.classLoader, arrayOf(SharedPreferences.Editor::class.java)
@@ -68,6 +98,7 @@ class AtlasFitTest {
                 "putString" -> instance.also { data[args[0] as String] = args[1] as String }
                 "remove" -> instance.also { data.remove(args[0] as String) }
                 "commit" -> true
+                "apply" -> null
                 else -> error(method.name)
             }
         } as SharedPreferences.Editor

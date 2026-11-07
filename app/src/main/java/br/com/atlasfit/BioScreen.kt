@@ -212,7 +212,7 @@ internal class BioScreen(private val ui: MainActivity) {
     }
 }
 
-private class TrendView(
+internal class TrendView(
     private val ui: MainActivity,
     private val points: List<Pair<LocalDate, Double>>
 ) : View(ui) {

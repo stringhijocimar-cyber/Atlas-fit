@@ -12,10 +12,11 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.text.InputType
+import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -26,10 +27,12 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 internal val ptBr = Locale.forLanguageTag("pt-BR")
-internal val backgroundColor = Color.rgb(12, 17, 28)
-internal val panelColor = Color.rgb(23, 32, 49)
-internal val accentColor = Color.rgb(121, 213, 253)
-internal val mutedColor = Color.rgb(181, 195, 217)
+internal val backgroundColor = Color.rgb(11, 15, 22)
+internal val panelColor = Color.rgb(23, 31, 43)
+internal val accentColor = Color.rgb(105, 211, 255)
+internal val mutedColor = Color.rgb(171, 188, 208)
+internal val successColor = Color.rgb(103, 230, 173)
+internal val outlineColor = Color.rgb(50, 67, 86)
 internal fun LocalDate.br(): String = format(DateTimeFormatter.ofPattern("dd/MM/uuuu", ptBr))
 internal fun Double.br(): String = java.text.NumberFormat.getNumberInstance(ptBr).apply {
     isGroupingUsed = false
@@ -39,6 +42,7 @@ internal fun Double.br(): String = java.text.NumberFormat.getNumberInstance(ptBr
 class MainActivity : Activity() {
     internal val store by lazy { TrainingStore(getSharedPreferences("atlas_fit", MODE_PRIVATE)) }
     private val bio by lazy { BioScreen(this) }
+    private val training by lazy { ExerciseScreens(this) }
     private lateinit var content: LinearLayout
     private var back: (() -> Unit)? = null
     private var reportDays = 30
@@ -52,6 +56,7 @@ class MainActivity : Activity() {
         calendarWeek = savedInstanceState?.getString("week")?.localDate()
         when (savedInstanceState?.getString("page")) {
             "calendar" -> calendar()
+            "library" -> training.library()
             "report" -> report()
             "bio" -> bio.show()
             else -> home()
@@ -96,29 +101,57 @@ class MainActivity : Activity() {
             isFillViewport = true
             addView(content)
         }, LinearLayout.LayoutParams(-1, 0, 1f))
-        val navigation = LinearLayout(this).apply { setBackgroundColor(panelColor) }
+        val navigation = LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            background = surface(panelColor, 24, outlineColor)
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+        }
+        val selected = when (page) {
+            "workout", "exercise" -> "home"
+            "guide" -> "library"
+            "session" -> "report"
+            "bioForm" -> "bio"
+            else -> page
+        }
         val tabs = listOf(
-            Triple("home", "Treinos", ::home),
+            Triple("home", "Treino", ::home),
+            Triple("library", "Exercícios", training::library),
             Triple("calendar", "Agenda", ::calendar),
-            Triple("report", "Relatório", ::report),
+            Triple("report", "Histórico", ::report),
             Triple("bio", "Evolução", bio::show)
         )
         tabs.forEach { (key, name, action) ->
-            navigation.addView(TextView(this).apply {
-                text = name
-                textSize = 13f
-                gravity = android.view.Gravity.CENTER
-                minHeight = dp(56)
-                setTextColor(if (page == key) accentColor else mutedColor)
-                typeface = Typeface.DEFAULT_BOLD
-                isSelected = page == key
+            val active = key == selected
+            val color = if (active) accentColor else mutedColor
+            navigation.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                if (active) background = surface(0xff243e52.toInt(), 19)
+                isSelected = active
+                contentDescription = name
+                isFocusable = true
+                addView(TabIcon(this@MainActivity, key, color), LinearLayout.LayoutParams(dp(22), dp(22)))
+                addView(TextView(this@MainActivity).apply {
+                    text = name
+                    setTextColor(color)
+                    textSize = 10f
+                    typeface = Typeface.DEFAULT_BOLD
+                    gravity = Gravity.CENTER
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                })
                 setOnClickListener { action() }
-            }, LinearLayout.LayoutParams(0, -1, 1f))
+            }, LinearLayout.LayoutParams(0, dp(51), 1f))
         }
-        shell.addView(navigation, LinearLayout.LayoutParams(-1, dp(56)))
+        shell.addView(navigation, LinearLayout.LayoutParams(-1, dp(60)).apply {
+            setMargins(dp(12), dp(4), dp(12), dp(6))
+        })
         setContentView(shell)
-        line(content, "ATLAS FIT  /  TREINO PESSOAL", 12, accentColor, bold = true)
-        line(content, title, 30, bold = true)
+        val mast = row(content).apply { gravity = Gravity.CENTER_VERTICAL }
+        if (page in setOf("workout", "exercise", "guide", "session", "bioForm") && onBack != null) {
+            button(mast, "Voltar", compact = true, action = onBack).contentDescription = "Voltar"
+        }
+        line(mast, "  ATLAS  /  FIT", 13, accentColor, bold = true).letterSpacing = .19f
+        line(content, title, if (page in setOf("exercise", "guide")) 27 else 32, bold = true)
         content.requestFocus()
         return content
     }
@@ -127,23 +160,44 @@ class MainActivity : Activity() {
         val page = screen("home", "Seu treino", null)
         val date = LocalDate.now()
         val today = TrainingPlan.planned(date)
-        card(page).also {
-            line(it, date.br(), 13, accentColor)
-            line(it, today?.title(TrainingPlan.complete(date) == today) ?: "Sem sessão programada", 23, bold = true)
-            line(it, "Ficha completa da semana · ${TrainingPlan.complete(date).name}", 15, mutedColor)
-            if (today != null) button(it, "Abrir treino de hoje") {
-                workout(today, TrainingPlan.complete(date) == today, date)
-            }
+        val complete = TrainingPlan.complete(date)
+        val heroPlan = today ?: complete
+        val full = heroPlan == complete
+        card(page, highlighted = true).also { hero ->
+            val split = row(hero).apply { gravity = Gravity.CENTER_VERTICAL }
+            val intro = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            split.addView(intro, LinearLayout.LayoutParams(0, -2, 1f))
+            line(intro, if (today == null) "FICHA DA SEMANA" else "PROGRAMADO PARA HOJE", 11, accentColor, bold = true).letterSpacing = .08f
+            line(intro, heroPlan.title(full), 24, bold = true)
+            line(intro, "${heroPlan.items(full).size} exercícios  ·  ${date.br()}", 13, mutedColor)
+            val guide = ExerciseGuides[heroPlan.exercises.first()]
+            split.addView(ExerciseArt(this, guide.motion, true), LinearLayout.LayoutParams(dp(106), dp(106)))
+            button(hero, "Abrir ficha  ›", primary = true) { workout(heroPlan, full, date) }
         }
-        section(page, "Academia")
+        val shortcut = row(page)
+        button(shortcut, "Biblioteca visual", weighted = true, action = training::library)
+        button(shortcut, "Agenda semanal", weighted = true, action = ::calendar)
+        section(page, "Suas fichas")
         for (plan in TrainingPlan.gym) {
             val item = card(page)
-            line(item, plan.title, 20, bold = true)
-            line(item, when (plan) {
+            val header = row(item).apply { gravity = Gravity.CENTER_VERTICAL }
+            TextView(this).apply {
+                text = plan.name
+                textSize = 24f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(accentColor)
+                gravity = Gravity.CENTER
+                background = surface(0xff254259.toInt(), 13)
+                header.addView(this, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(12) })
+            }
+            val titles = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            header.addView(titles, LinearLayout.LayoutParams(0, -2, 1f))
+            line(titles, plan.title, 20, bold = true)
+            line(titles, when (plan) {
                 Workout.A -> "Peito, ombros e tríceps"
                 Workout.B -> "Pernas e panturrilhas"
                 else -> "Costas, trapézio e bíceps"
-            }, 14, mutedColor)
+            }, 13, mutedColor)
             val row = row(item)
             button(row, "Completa", weighted = true) { workout(plan, true, date) }
             button(row, "Expressa", weighted = true) { workout(plan, false, date) }
@@ -188,95 +242,8 @@ class MainActivity : Activity() {
         }
     }
 
-    private data class ExerciseFields(
-        val exercise: Exercise,
-        val done: CheckBox,
-        val load: EditText?,
-        val sets: EditText?,
-        val reps: EditText?,
-        val minutes: EditText?
-    ) {
-        fun read(): ExerciseLog? {
-            if (!done.isChecked) return null
-            return ExerciseLog(exercise.name, load?.text?.toString()?.decimal(),
-                sets?.text?.toString()?.toIntOrNull(), reps?.text?.toString()?.toIntOrNull(),
-                minutes?.text?.toString()?.toIntOrNull())
-        }
-
-        fun invalid(): Boolean {
-            if (!done.isChecked) return false
-            if (load != null && load.text.isNotBlank() && load.text.toString().decimal()?.let { it >= 0 } != true) return true
-            return listOfNotNull(sets, reps, minutes).any {
-                it.text.isNotBlank() && it.text.toString().toIntOrNull()?.let { n -> n > 0 } != true
-            }
-        }
-    }
-
     private fun workout(plan: Workout, full: Boolean, date: LocalDate, returnTo: () -> Unit = ::home) {
-        val page = screen("workout", plan.title(full), returnTo)
-        val sessions = store.sessions()
-        val slot = Session(date, plan, full)
-        val existing = sessions.find(slot::sameSlot)
-        val previous = sessions.filter { it.date <= date && !slot.sameSlot(it) && it.workout == plan }
-            .flatMap(Session::logs).groupBy(ExerciseLog::name)
-        line(page, when (plan) {
-            Workout.CARDIO -> "20 min de esteira ou bicicleta + 5–10 min de mobilidade."
-            Workout.PESOS -> "10–15 min de bicicleta + 15 min de pesos leves, conforme sua recuperação."
-            else -> if (full) "Ficha original completa." else "Seleção da ficha original para uma sessão de até 30 min."
-        }, 15, mutedColor)
-        button(page, "Data do treino · ${date.br()}") {
-            pickDate(date) { workout(plan, full, it, returnTo) }
-        }
-        if (date > LocalDate.now()) line(page, "Prévia de treino. O registro fica disponível na data da sessão.", 14, accentColor)
-        else line(page, "Marque os exercícios realizados. Os detalhes são opcionais.", 14, mutedColor)
-        val fields = plan.items(full).mapIndexed { index, exercise ->
-            val item = card(page)
-            val saved = existing?.logs?.find { it.name == exercise.name }
-            val done = CheckBox(this).apply {
-                text = "${index + 1}. ${exercise.name}"
-                textSize = 17f
-                setTextColor(Color.WHITE)
-                buttonTintList = ColorStateList.valueOf(accentColor)
-                isChecked = saved != null
-                isEnabled = date <= LocalDate.now()
-            }
-            item.addView(done)
-            val last = previous[exercise.name]?.firstOrNull()?.let(::describe)
-                ?: store.legacyLoad(plan, exercise).takeIf(String::isNotBlank)
-            if (last != null) line(item, "Registro anterior · $last", 13, mutedColor)
-            var load: EditText? = null
-            var sets: EditText? = null
-            var reps: EditText? = null
-            var minutes: EditText? = null
-            if (date <= LocalDate.now()) {
-                if (exercise.cardio) {
-                    minutes = field(item, "Minutos", saved?.minutes?.toString().orEmpty(), decimals = false)
-                } else {
-                    val inputs = row(item)
-                    load = field(inputs, "Carga kg", saved?.load?.br().orEmpty(), weighted = true)
-                    sets = field(inputs, "Séries", saved?.sets?.toString().orEmpty(), decimals = false, weighted = true)
-                    reps = field(inputs, "Reps/série", saved?.reps?.toString().orEmpty(), decimals = false, weighted = true)
-                }
-            }
-            if (plan in TrainingPlan.gym) button(item, "Buscar execução no YouTube") { video(exercise) }
-            ExerciseFields(exercise, done, load, sets, reps, minutes)
-        }
-        if (date <= LocalDate.now()) button(page, if (existing == null) "Finalizar e salvar treino" else "Atualizar treino") {
-            if (fields.any(ExerciseFields::invalid)) {
-                message("Confira a carga, as séries, as repetições e os minutos informados.")
-                return@button
-            }
-            val logs = fields.mapNotNull(ExerciseFields::read)
-            if (logs.isEmpty()) {
-                message("Marque pelo menos um exercício realizado.")
-                return@button
-            }
-            val updated = slot.copy(logs = logs)
-            if (store.save(updated)) {
-                message("Treino salvo")
-                sessionDetails(updated)
-            } else message("Falha ao salvar. Tente novamente.")
-        }
+        training.workout(Session(date, plan, full), returnTo)
     }
 
     private fun report() {
@@ -325,6 +292,10 @@ class MainActivity : Activity() {
                 entries.mapNotNull(ExerciseLog::minutes).takeIf { it.isNotEmpty() }
                     ?.sumOf(Int::toLong)?.let { totalsByExercise.add("$it min") }
                 line(item, totalsByExercise.joinToString(" · "), 14, mutedColor)
+                if (entries.any { it.load != null }) button(item, "Evolução de carga") {
+                    val detail = screen("session", name, ::report)
+                    addLoadHistory(detail, name)
+                }
             }
         if (reportDays == 0) {
             val legacy = TrainingPlan.gym.flatMap { plan ->
@@ -342,25 +313,47 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun sessionDetails(session: Session) {
+    internal fun sessionDetails(session: Session) {
         val page = screen("session", session.workout.title(session.full), ::report)
         line(page, session.date.br(), 16, accentColor)
+        session.durationSeconds?.let { line(page, "${clockText(it)} de treino", 14, mutedColor) }
         if (session.logs.isEmpty()) line(page, "Presença registrada. Detalhes de exercícios ainda não preenchidos.", 16, mutedColor)
         session.logs.forEach {
             val item = card(page)
             line(item, it.name, 17, bold = true)
             line(item, describe(it), 14, mutedColor)
+            it.rounds.forEach { round ->
+                val values = listOfNotNull(round.reps?.let { reps -> "$reps reps" },
+                    round.load?.let { load -> "${load.br()} kg" },
+                    round.restSeconds?.let { seconds -> "${seconds}s descanso" }).joinToString(" · ")
+                line(item, "Série ${round.number}  ·  ${values.ifEmpty { "Concluída" }}", 14, accentColor)
+            }
         }
         button(page, "Editar treino") { workout(session.workout, session.full, session.date) { sessionDetails(session) } }
         button(page, "Voltar ao relatório", action = ::report)
     }
 
-    private fun describe(log: ExerciseLog): String = listOfNotNull(
+    internal fun addLoadHistory(page: LinearLayout, name: String) {
+        val points = store.sessions().mapNotNull { session ->
+            session.logs.firstOrNull { it.name == name }?.load?.let { session.date to it }
+        }.groupBy({ it.first }, { it.second }).map { (date, loads) -> date to loads.max() }.sortedBy { it.first }
+        if (points.isEmpty()) return
+        val panel = card(page)
+        section(panel, "Evolução de carga")
+        line(panel, "Maior carga registrada por dia", 13, mutedColor)
+        line(panel, "${points.last().second.br()} kg", 23, accentColor, bold = true)
+        if (points.size > 1) panel.addView(TrendView(this, points), LinearLayout.LayoutParams(-1, dp(100)))
+        points.asReversed().take(15).forEach { (date, load) ->
+            line(panel, "${date.br()}  ·  ${load.br()} kg", 14, mutedColor)
+        }
+    }
+
+    internal fun describe(log: ExerciseLog): String = listOfNotNull(
         log.load?.let { "${it.br()} kg" }, log.sets?.let { "$it séries" },
         log.reps?.let { "$it reps/série" }, log.minutes?.let { "$it min" }
     ).joinToString(" · ").ifEmpty { "Realizado" }
 
-    private fun video(exercise: Exercise) {
+    internal fun video(exercise: Exercise) {
         val query = Uri.encode("Leandro Twin execução ${exercise.name}")
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=$query")))
@@ -380,44 +373,64 @@ class MainActivity : Activity() {
 
     internal fun section(parent: LinearLayout, text: String) = line(parent, text, 20, bold = true)
 
-    internal fun line(parent: LinearLayout, value: String, size: Int = 16, color: Int = Color.WHITE, bold: Boolean = false) {
-        parent.addView(TextView(this).apply {
+    internal fun line(parent: LinearLayout, value: String, size: Int = 16, color: Int = Color.WHITE, bold: Boolean = false): TextView =
+        TextView(this).apply {
             text = value
             textSize = size.toFloat()
             setTextColor(color)
-            if (bold) typeface = Typeface.DEFAULT_BOLD
+            if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             setPadding(0, dp(4), 0, dp(5))
-        })
-    }
-
-    internal fun card(parent: LinearLayout): LinearLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(dp(14), dp(10), dp(14), dp(10))
-        background = GradientDrawable().apply {
-            setColor(panelColor)
-            cornerRadius = dp(15).toFloat()
+            parent.addView(this)
         }
+
+    internal fun surface(color: Int, radius: Int, stroke: Int? = null, gradientEnd: Int? = null): GradientDrawable =
+        GradientDrawable().apply {
+            if (gradientEnd == null) setColor(color)
+            else {
+                orientation = GradientDrawable.Orientation.TL_BR
+                colors = intArrayOf(color, gradientEnd)
+            }
+            cornerRadius = dp(radius).toFloat()
+            if (stroke != null) setStroke(dp(1), stroke)
+        }
+
+    internal fun card(parent: LinearLayout, highlighted: Boolean = false): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(14), dp(12), dp(14), dp(12))
+        background = if (highlighted) surface(0xff18334a.toInt(), 22, 0xff356182.toInt(), 0xff182230.toInt())
+            else surface(panelColor, 20, outlineColor)
         parent.addView(this, LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = dp(5)
-            bottomMargin = dp(8)
+            bottomMargin = dp(7)
         })
     }
 
     internal fun row(parent: LinearLayout): LinearLayout = LinearLayout(this).also { parent.addView(it) }
 
-    internal fun button(parent: LinearLayout, title: String, weighted: Boolean = false, action: () -> Unit): Button {
-        val width = if (weighted) 0 else -1
+    internal fun button(parent: LinearLayout, title: String, weighted: Boolean = false, primary: Boolean = false,
+                        compact: Boolean = false, action: () -> Unit): Button {
+        val width = if (weighted) 0 else if (compact) -2 else -1
         val button = Button(this).apply {
             text = title
             isAllCaps = false
-            textSize = 14f
-            minHeight = dp(48)
-            setTextColor(accentColor)
-            backgroundTintList = ColorStateList.valueOf(Color.rgb(34, 49, 72))
+            textSize = if (compact) 13f else 14f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            minimumWidth = 0
+            minWidth = 0
+            minHeight = dp(if (compact) 42 else 47)
+            setPadding(dp(if (compact) 10 else 8), dp(6), dp(if (compact) 10 else 8), dp(6))
+            setTextColor(if (primary) 0xff071726.toInt() else accentColor)
+            background = android.graphics.drawable.RippleDrawable(
+                ColorStateList.valueOf(0x2269d3ff), if (primary) surface(accentColor, 13, gradientEnd = 0xff3ca6f6.toInt())
+                else surface(0xff223348.toInt(), 13, outlineColor), null
+            )
+            stateListAnimator = null
             setOnClickListener { action() }
         }
         parent.addView(button, LinearLayout.LayoutParams(width, -2, if (weighted) 1f else 0f).apply {
-            if (weighted) marginEnd = dp(4)
+            topMargin = dp(4)
+            bottomMargin = dp(3)
+            if (weighted || compact) marginEnd = dp(5)
         })
         return button
     }

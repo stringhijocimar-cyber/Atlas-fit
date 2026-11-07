@@ -39,3 +39,9 @@ gradle testDebugUnitTest assembleDebug
 ```
 
 O APK local fica em `app/build/outputs/apk/debug/app-debug.apk`.
+
+## Interface 2.0
+
+A aba **Exercícios** reúne ilustrações em duas fases, músculos-alvo, instruções e atalhos de busca de vídeo. As fichas e as ilustrações são locais. O YouTube usa conexão à internet.
+
+No modo treino, registre repetições e carga por série. Marcar uma série inicia o descanso configurado. O treino em andamento é salvo no aparelho, incluindo o cronômetro e os campos preenchidos. Finalize para gravar a sessão no histórico e consultar a evolução de carga por exercício.
