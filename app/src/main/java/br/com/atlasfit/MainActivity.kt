@@ -63,6 +63,16 @@ class MainActivity : Activity() {
  private fun bioReport() {
    screen("Evolução da bioimpedância")
    label("Registre avaliações por data e acompanhe a tendência. Equipamentos e hidratação podem alterar as leituras.",15)
+   button("Importar avaliação histórica 09/04/2025") {
+     val arr=JSONArray(prefs.getString("bio","[]"))
+     var exists=false
+     for(i in 0 until arr.length()) if(arr.optJSONObject(i)?.optString("date")=="2025-04-09") exists=true
+     if(!exists) {
+       arr.put(JSONObject().put("date","2025-04-09").put("weight",93.4).put("fat",26.8).put("fatKg",25.03).put("muscle",69.9).put("water",52.6).put("waist",JSONObject.NULL))
+       prefs.edit().putString("bio",arr.toString()).apply()
+     }
+     bioReport()
+   }
    val date=input("Data AAAA-MM-DD",today())
    val weight=input("Peso (kg)")
    val fat=input("Gordura corporal (%)")
