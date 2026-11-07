@@ -73,6 +73,16 @@ class MainActivity : Activity() {
      }
      bioReport()
    }
+   button("Importar avaliação Lefu 07/11/2026") {
+     val arr=JSONArray(prefs.getString("bio","[]"))
+     var exists=false
+     for(i in 0 until arr.length()) if(arr.optJSONObject(i)?.optString("date")=="2026-11-07") exists=true
+     if(!exists) {
+       arr.put(JSONObject().put("date","2026-11-07").put("weight",86.5).put("fat",19.3).put("fatKg",16.7).put("muscle",40.0).put("muscleUnit","kg esquelética").put("water",51.2).put("waterUnit","kg").put("leanKg",69.8).put("visceralLevel",7).put("bmrKcal",1877).put("waist",JSONObject.NULL).put("source","Lefu CF577"))
+       prefs.edit().putString("bio",arr.toString()).apply()
+     }
+     bioReport()
+   }
    val date=input("Data AAAA-MM-DD",today())
    val weight=input("Peso (kg)")
    val fat=input("Gordura corporal (%)")
@@ -103,11 +113,11 @@ class MainActivity : Activity() {
      fun delta(key:String,unit:String):String { val v=last.optDouble(key)-first.optDouble(key); return "${if(v>=0) "+" else ""}${String.format(Locale("pt","BR"),"%.2f",v)} $unit" }
      label("Variação entre a primeira e a última avaliação:")
      label("Peso: ${delta("weight","kg")} · Gordura: ${delta("fat","p.p.")} · Massa adiposa: ${delta("fatKg","kg")}")
-     label("Massa muscular: ${delta("muscle","p.p.")} · Água: ${delta("water","p.p.")}")
+     label("Comparação de músculo e água somente entre avaliações com a mesma unidade e método.")
    }
    for(x in entries.asReversed()) {
      label("${datePt(x.optString("date"))} · ${x.optDouble("weight")} kg",19)
-     label("Gordura ${x.optDouble("fat")}% · Massa adiposa ${x.optDouble("fatKg")} kg · Massa muscular ${x.optDouble("muscle")}% · Água ${x.optDouble("water")}%")
+     label("Gordura ${x.optDouble("fat")}% · Massa adiposa ${x.optDouble("fatKg")} kg · Massa muscular ${x.optDouble("muscle")} ${x.optString("muscleUnit","%")} · Água ${x.optDouble("water")} ${x.optString("waterUnit","%")}")
    }
  }
 
